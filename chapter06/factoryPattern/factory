@@ -1,0 +1,99 @@
+
+###Factoy Patten 
+
+생성패턴 중 하나로 클라이언트를 객체 생성부와 분리하기 위함
+객체 생성을 담당하는 팩토리 클래스를 두어 관리 및 확장을 쉽게 구성하기 위함
+단일 책임 원칙을 잘 지키는 코드가 됨
+상위 클래스와 하위 클래스가 있을 때, 팩토리 클래스를 이용해 하위 클래스의 인스턴스를 생성
+
+
+Animal.java
+```
+    public class Animal {
+        Animal(){ // 생성자
+        }
+    	 //...
+    }
+```    
+Dog.java
+```
+    public class Dog extends Animal{
+        Dog(){
+            // 생성자
+        }
+        public Dog(String data){
+            return;
+        }
+    	   //...
+        public String toString(){
+            return "Dog";
+        }
+    }
+```
+Cat.java
+```
+    public class Cat extends Animal{
+        Cat(){
+            // 생성자
+        }
+         public Cat(String string) {
+             return;
+        }
+        //...
+        public String toString(){
+            return "Cat";
+        }
+    }
+```
+AnimalFactory.java
+```
+    public class AnimalFactory {
+        static Animal create(String string) {
+            if(string.equals("Dog")) {
+                return new Dog(string);
+            } else if(string.equals("Cat")) {
+                return new Cat(string);
+            }
+           //...
+            return null;
+        }
+    }
+```
+```    
+    public class Map {
+        
+        public static void main(String[] args){
+            
+            LinkedList<String> lnkList = new LinkedList<String>();
+            lnkList.add("Dog");
+            lnkList.add("Cat");
+    
+            // Map은 말 그대로 맵의 구현 방법에 대해서만 서술되어야 하는데, 
+            // 파일을 읽는 부분에서 '동물을 분류하는' 추가적인 책임이 포함되어있다. 
+            // 만약 새 동물 넣어야 한다면 전혀 상관없는 Map 클래스를 수정해야 할 것이다.
+            
+            // 1. 개선 전
+            Iterator<String> iter = lnkList.iterator();        
+            while (iter.hasNext()) {
+                if(iter.equals("Dog")){
+                    Dog dog = new Dog();
+                    System.out.println(dog);
+                }else if(iter.equals("Cat")){
+                    Cat cat = new Cat();
+                    System.out.println(cat);
+                }
+            }
+    
+            // 하위 클래스들을 생성하는 Factory 클래스를 만들어 책임을 위임하는 것이다.
+            // 2. 개선 후
+            Iterator<String> factoryIter = lnkList.iterator();    
+            while (factoryIter.hasNext()) {
+               Animal animal = AnimalFactory.create(factoryIter.next());
+               System.out.println(animal);
+            }
+        }
+    }
+```
+참고
+
+[https://shlee0882.tistory.com/188](https://shlee0882.tistory.com/188)
