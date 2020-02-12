@@ -10,13 +10,18 @@
 * DAO 패턴 구현 관련 컴포넌트
 - DAO 인터페이스
 - DAO 인터페이스를 구현한 클래스
-- DAO 팩토리
 - DTO(=Value Object:VO)
 
 * 여기서 DTO란?
 - Data Trans Object
 - 데이터 베이스에 접근하여 가져온 데이터들을 규격화한 객체
+- 로직을 가지지 않는 순수한 데이터 객체로 getter, setter 메소드만 가진 클래스
+- 자바는 Property를 문법적으로 제공하지 않음으로 프로퍼티라는 개념을 사용하기 위해 set/get 이후에 나온 단어가 Property라 약속하여 작성
 
 * 예제
 - 책 정보(이름, isbn)를 DAO로 접근하여 비즈니스 로직에서 사용하는 예제
 -> design.pattern.dao.example1 참고
+- DAO에 DB에 연결한 Connection이 설정된 예제
+-> design.pattern.dao.example2 참고
+현재는 Mybatis등을 사용할 경우 커넥션풀까지 제공되고 있기 때문에 DAO에 Connection을 설정하지 않는다.
+해당 방법은 Spring MVC 패턴에서 주로 사용함으로 해당 DAO 예제는 MVC 패턴의 예제를 참고하라.
