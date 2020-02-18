@@ -5,10 +5,11 @@
 * 보통 메서드를 실행하면 그 메서드가 완료될 때까지 해당 메서드를 호출한 코드는 기다려야 함
   그러나 그렇게 작동하면 안 될 경우가 있고 이럴 경우 비동기 패턴 방식을 사용!
 
-2. 비동기 패턴 구현 방법
+2. 비동기 패턴 구현 방법1 - 일반 자바 코드로 작성
 * 자바는 스레드를 직접 구현할 수 있기 때문에 비동기 코드를 쉽게 구현할 수 있다.
 -> design.pattern.async.example1 참고
-* 자바 비동기 프로그램의 가장 잘 알려진 보편적인 기술? Future<V> 인터페이스, FutureTask 클래스
+
+* 자바 비동기 프로그램의 가장 잘 알려진 보편적인 기술? Future<V> 인터페이스
 - Future은 비동기 처리 결과를 표현하기 위해 사용
 - 비동기 처리가 완료되었는지 확인하고 처리 완료를 기다리고 처리 결과를 리턴하는 메소드를 제공
 - 예제 치킨 주문하기
@@ -49,3 +50,228 @@ if(b){
 이런식으로 Future 객체를 사용하는 것이 Future 패턴이다.
 무엇인가 일을 시킨 후 바로 리턴 받고 자기 할일을 한다.
 리턴 받은 객체를 통해 간간히 자기가 시킨 일의 결과를 확인한다.
+
+3. 비동기 패턴 구현 방법2 - 스프링에서  비동기 코드 작성(해당 파트는 참고용으로 작성)
+* 스프링에서 왜 비동기를 지원하게 되었는가?
+과거와 달리 수많은 기기가 인터넷에 물려 있고 HTTP 요청 횟수가 기하급수적으로 늘면서 웹 서비스가 스레드를 블로킹하는 식으로는 정상적인 서비스 불가능
+-> HTTP 요청을 비동기로 처리하여 문제 해결!
+
+* 동기 VS 비동기
+- 동기: 상대방의 일정 신호에 의해서 다음 동작이 이루어질 경우/ 어떤 루틴을 완전히 끝내고 제어를 반납할 경우
+- 비동기: 상대방의 상태와 관계없이 일방적으로 동작할 경우/ 동작이 안 끝났어도 일단 제어권을 반납한 후 자신의 할일을 계속할 경우
+
+* 스프링에서 비동기 반환형 타입 종류
+DeferredResult
+ListenableFuture<?>
+CompletableStage<?>
+CompletableFuture<?>
+Callable<?>
+ResponseBodyEmitter<?>
+SseEmitter
+StreamingResponseBody
+
+* 비동기 요청 패턴
+1) 비동기 실행이 종료된 후에 HTTP응답을 하는 패턴
+- 부하가 커서 시간이 많이 걸리는 처리를 애플리케이션 서버가 관리하는 스레드일 경우 분리된 스레드에서 실행하게 만듬
+- 실제 HTTP응답은 비동기 처리가 완료된 후에 나오기 때문에 클라이언트 측에서 보면 동기 처리를 한 것처럼 보임
+
+=> 스프링 mvc가 이와 같은 패턴을 처리하는 방법은?
+  - 스프링 mvc의 스레드에서 비동기 처리할 경우: 컨트롤러의 핸들러 메서드에서 Callable 타입을 반환
+  - 스프링 mvc 외의 스레드에서 비동기 처리를 할 경우: 컨트롤러의 핸들러 메서드에서 DeferredResult, ListenableFuture, CompletableFuture 타입을 반환형
+
+2) 비동기 실행이 처리되는 중에 HTTP 응답을 하는 패턴
+- 서버에서 임의의 타이밍에 데이터를 전송하고 싶을 때 사용 -> 서버측에서 비동기 처리 시작 시점에 HTTP 응답 일딴 주고 그 후에 따로 응답 데이터 전송하고
+- 클라이언트가 분할 응답을 지원해야 가능
+
+=> 스프링 mvc가 이와 같은 패턴을 처리하는 방법은?
+  - 롱 폴링을 이용한 비동기 처리: 핸들러 메서드에 ResponseBodyEmitter 타입을 반환
+   - SSE(Server-Sent Events)에 따른 비동기 처리: 핸들러 메서드에 SseEmitter 타입을 반환, 클라이언트가 content-type으로 text/event-stream같은 sse 지원해야 가능   
+
+* 비동기 활성화 설정
+1) web.xml 설정에서 활성화
+- 서블릿의 <async-supported> 요소를 true로 설정해서 DispatcherServlet의 비동기 활성화
+- 필터의 <async-supported> 요소를 true로 설정해서 서블릿 필터의 비동기 활성화
+- 서블릿 필터의 처리 대상에 비동기 요청을 포함하고 싶을 경우 <dispatcher> 요소에 ASYNC 설정
+===================================================
+<servlet>
+  <!-- ASYNC -->
+  <async-supported>true</async-supported>
+</servlet>
+
+<filter>
+    <filter-name>CharacterEncodingFilter</filter-name>
+    <filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+
+    <!-- ASYNC -->
+    <async-supported>true</async-supported>
+
+    <init-param>
+        <param-name>encoding</param-name>
+        <param-value>UTF-8</param-value>
+    </init-param>
+    <init-param>
+        <param-name>forceEncoding</param-name>
+        <param-value>true</param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>CharacterEncodingFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+    <dispatcher>REQUEST</dispatcher>
+
+    <!-- ASYNC -->
+    <dispatcher>ASYNC</dispatcher>
+</filter-mapping>
+===================================================
+
+2) 스프링 MVC에서 비동기 활성화
+- @EnableWebMvc를 붙이면 비동기 기능이 자동으로 활성화
+- 비동기 내용은 configureAsyncSuppor()에서 재정의
+===================================================
+@Configuration
+@EnableWebMvc
+public class WebMvcConfig extends WebMvcConfigurerAdapter {
+
+  @Override
+  public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+      configurer.setDefaultTimeout(5000);
+  }
+}
+===================================================
+
+3) 스프링 mvc가 관리하는 스레드에서 비동기 처리할 경우 TaskExecutor를 커스터마이징 가능하다.
+===================================================
+@Configuration
+@EnableWebMvc
+public class WebMvcConfig extends WebMvcConfigurerAdapter {
+
+  @Override
+  public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+      configurer.setDefaultTimeout(5000);
+      // == 스레드풀을 이용하도록 커스터마이징한 TaskExecutor를 설정 ==
+      configurer.setTaskExecutor(mvcTaskExecutor());
+  }
+
+  @Bean
+  public TaskExecutor mvcTaskExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(5);
+    executor.setMaxPoolSize(10);
+    executor.setQueueCapacity(25);
+    return executor;
+  }
+}
+===================================================
+
+* 비동기 처리 구현
+1) Callable
+- java 1.5부터 가능한 Callable 인터페이스가 있다.
+- 해당 인터페이스는 추상 메서드가 하나 있는 FunctionalInterface이다.
+- 해당 타입을 리턴하면 Spring에서 적절하게 리턴값을 만들어 준다.
+- 단점은 아무 설정을 할 수 없다. 타임아웃이라던지 어떤 스레드풀을 사용할지 결정할 수 없다.
+===================================================
+@GetMapping("/callable")
+public Callable<List<Person>> persons(){
+  return () -> {
+    return generatorPersons.getPersons();
+  };
+}
+===================================================
+
+2) CompletableFuture
+- java 1.8부터 가능한 CompletableFuture 클래스이다.
+- 위와 마찬가지로 mvc 리턴 타입으로 해당 타입을 정의하면 Spring에서 적절하게 리턴값을 준다.
+- 다만 CompletableFuture.supplyAsync를 사용해서 좀 더 나은 설정을 할 수 있다.
+===================================================
+@GetMapping("/future")
+public CompletableFuture<List<Person>> future() {
+  return CompletableFuture.supplyAsync(() -> generatorPersons.getPersons(), this.asyncExecutor);
+}
+===================================================
+
+3) DeferredResult
+- spring 3.2부터 사용 가능하다.
+- 이건 또한 Callable처럼 또한 다른 Thread로 부터 생산된 값을 반환하는 것은 동일하다.
+- 다만 해당 스레드가 Spring MVC에서 관리되는 것이 아니다.
+- 동작에 대해 예를 들어 JMS message, scheduled task 등과 같은 외부의 몇몇 이벤트로부터 생산된 response를 반환해야 하는 경우 사용한다.
+===================================================
+private final Queue<DeferredResult<List<Person>>> personsQueue = new ConcurrentLinkedQueue<>();
+
+@GetMapping("/deferred")
+public DeferredResult<List<Person>> persons() {
+  DeferredResult<List<Person>> result = new DeferredResult<>();
+  personsQueue.add(result);
+  return result;
+}
+
+@Scheduled(fixedRate = 2000)
+public void processQueues() {
+  for (DeferredResult<List<Person>> result : this.personsQueue) {
+    result.setResult(generatorPersons.getPersons());
+    this.personsQueue.remove(result);
+  }
+}
+===================================================
+- 작동 방식은 먼저 DeferredResult를 생성해서 큐에 담고 바로 리턴한다.
+- 그리고 전혀 다른 스레드에서 setResult를 호출하면 그 때 뷰에 전달된다.
+
+* 예외 처리
+- 스프링 MVC ExceptionResolver가 예외를 처리
+- 핸들러 메서드의 반환형으로 DeferredResult를 사용한 경우 setErrorResult()를 이용해 예외 처리
+===================================================
+@Async
+public void upload(MultipartFile file, DeferredResult<String> deferredResult) {
+  try {
+    // do something
+    deferredResult.setResult("upload/complete");
+  } catch(Exception e) {
+    deferredResult.setErrorResult(e); // 발생한 예외를 DeferredResult에 설정
+  }
+}
+===================================================
+
+* 비동기 실행에 대한 공통 처리(인터셉터)
+1) 메서드 종류
+- beforeConcurrentHandling: 비동기 실행을 시작하기 직전 호출
+- preProcess: 비동기 실행을 시작한 직후에 호출
+- postProcess: 비동기 실행의 처리 결과나 예외 객체가 설정된 직후에 호출
+- handlleTimeout: 비동기 실행이 타잉아웃될 때 호출
+- afterCompletion: 비동기 실행의 처리가 종료될 때 호출
+
+2) 구현 방법
+2가지 방법으로 구현 가능하다.
+- CallableProcessingInterceptor 구현
+===================================================
+public class CustomCallableProcessingInterceptor extends CallableProcessingInterceptor {
+  @Override
+  public <T> Object handlleTimeout(NativeWebRequest request, Callable<T> task) {
+    return "error/timeoutError";
+  }
+}
+===================================================
+
+- DeferredResultProcessingInterceptor 구현
+===================================================
+public class CustomDeferredResultProcessingInterceptor extends DeferredResultProcessingInterceptor {
+  @Override
+  public <T> boolean handlleTimeout(NativeWebRequest request, DeferredResult<T> deferredResult) {
+    deferredResult.setResult((T) "error/timeoutError");
+    return false;
+  }
+}
+===================================================
+
+구현한 인터셉터를 스프링 MVC에 연동하는 방법은 다음과 같다.
+===================================================
+@Override
+public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+  // do something
+
+  configurer.registerCallableInterceptors(new CustomCallableProcessingInterceptor());
+  configurer.registerDeferredResultInterceptors(new CustomDeferredResultProcessingInterceptor());
+}
+===================================================
+
+
+
+
